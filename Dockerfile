@@ -7,7 +7,7 @@ RUN jupyter nbextension enable --sys-prefix --py pydeck
 ENV HOME=/tmp
 ENV MAPBOX_API_KEY=pk.eyJ1IjoiZHViZXJzYWoiLCJhIjoiY2swcGw1ZmgxMGVqZzNjbnhzaWVxMHV0ZyJ9.p_3sGrPDq7v2Crb4cIfx3Q
 COPY . ${HOME}
-WORKDIR ${HOME}/bindings/python/pydeck
+WORKDIR ${HOME}/python/pydeck
 
 RUN pip install -r requirements-dev.txt
 
