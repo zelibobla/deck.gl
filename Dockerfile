@@ -4,12 +4,15 @@ RUN pip install pydeck
 RUN jupyter nbextension install --sys-prefix --symlink --overwrite --py pydeck
 RUN jupyter nbextension enable --sys-prefix --py pydeck
 
+RUN pip install jupyter && \
+  pip install jupyterlab && \
+  pip install requests && \
+  pip install pandas
+
 ENV HOME=/tmp
 ENV MAPBOX_API_KEY=pk.eyJ1IjoiZHViZXJzYWoiLCJhIjoiY2swcGw1ZmgxMGVqZzNjbnhzaWVxMHV0ZyJ9.p_3sGrPDq7v2Crb4cIfx3Q
-COPY . ${HOME}
-WORKDIR ${HOME}/python/pydeck
-
-RUN pip install -r requirements-dev.txt
+WORKDIR ${HOME}
+COPY ./bindings/pydeck/examples/ .
 
 ARG NB_USER=jovyan
 ARG NB_UID=1000

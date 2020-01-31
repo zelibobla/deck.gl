@@ -1,9 +1,18 @@
-node_modules
-env
-env3
-build
-dist
+*/*/env
+*/*/env3
+*/*/build
+*/*/dist
+coverage
+dev-docs
 docs
+examples
+modules
+*/*/node_modules
+scripts
+showcases
+test
+website-gatsby
+website
 
 .git
 .ipynb_checkpoints
