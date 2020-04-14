@@ -1,6 +1,6 @@
 FROM python:3.7-slim
 RUN pip install --no-cache-dir notebook==5.*
-RUN pip install pydeck
+RUN pip install pydeck==0.3.0
 RUN jupyter nbextension install --sys-prefix --symlink --overwrite --py pydeck
 RUN jupyter nbextension enable --sys-prefix --py pydeck
 
