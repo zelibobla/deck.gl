@@ -1,13 +1,14 @@
 FROM python:3.7-slim
 RUN pip install --no-cache-dir notebook==5.*
-RUN pip install pydeck==0.3.0
+RUN pip install pydeck==0.4.0
 RUN jupyter nbextension install --sys-prefix --symlink --overwrite --py pydeck
 RUN jupyter nbextension enable --sys-prefix --py pydeck
 
 RUN pip install jupyter && \
   pip install jupyterlab && \
   pip install requests && \
-  pip install pandas
+  pip install pandas && \
+  pip install geopandas
 
 ENV HOME=/tmp
 ENV MAPBOX_API_KEY=pk.eyJ1IjoiZHViZXJzYWoiLCJhIjoiY2swcGw1ZmgxMGVqZzNjbnhzaWVxMHV0ZyJ9.p_3sGrPDq7v2Crb4cIfx3Q
