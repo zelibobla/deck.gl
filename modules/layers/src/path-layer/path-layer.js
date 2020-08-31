@@ -21,6 +21,7 @@
 import {Layer, project32, picking, log} from '@deck.gl/core';
 import GL from '@luma.gl/constants';
 import {Model, Geometry} from '@luma.gl/core';
+import {Texture2D} from '@luma.gl/core';
 
 import PathTesselator from './path-tesselator';
 
@@ -29,7 +30,17 @@ import fs from './path-layer-fragment.glsl';
 
 const DEFAULT_COLOR = [0, 0, 0, 255];
 
+const DEFAULT_TEXTURE_PARAMETERS = {
+  [GL.TEXTURE_MIN_FILTER]: GL.LINEAR,
+  // GL.LINEAR is the default value but explicitly set it here
+  [GL.TEXTURE_MAG_FILTER]: GL.LINEAR,
+  // for texture boundary artifact
+  [GL.TEXTURE_WRAP_S]: GL.REPEAT,
+  [GL.TEXTURE_WRAP_T]: GL.CLAMP_TO_EDGE
+};
+
 const defaultProps = {
+  texture: null, // {type: 'object', value: null, async: true},
   widthUnits: 'meters',
   widthScale: {type: 'number', min: 0, value: 1}, // stroke width in meters
   widthMinPixels: {type: 'number', min: 0, value: 0}, //  min stroke width in pixels
@@ -115,7 +126,8 @@ export default class PathLayer extends Layer {
         type: GL.UNSIGNED_BYTE,
         accessor: (object, {index, target: value}) =>
           this.encodePickingColor(object && object.__source ? object.__source.index : index, value)
-      }
+      },
+
     });
     /* eslint-enable max-len */
 
@@ -130,10 +142,35 @@ export default class PathLayer extends Layer {
     }
   }
 
+  async loadTexture({texture, fetch}) {
+    if (this.state.pathTexture) {
+      this.state.pathTexture.delete();
+    }
+    this.setState({pathTexture: null});
+    let image = texture;
+    if (typeof image === 'string') {
+      image = await fetch(image, {propName: 'texture', layer: this});
+    }
+    const pathTexture =
+      image instanceof Texture2D
+        ? image
+        : new Texture2D(this.context.gl, {
+            data: image,
+            parameters: DEFAULT_TEXTURE_PARAMETERS
+          });
+    this.setState({pathTexture});
+  }
+
   updateState({oldProps, props, changeFlags}) {
     super.updateState({props, oldProps, changeFlags});
 
     const attributeManager = this.getAttributeManager();
+
+    const {texture} = props;
+
+    if (texture && props.texture != oldProps.texture) {
+      this.loadTexture.call(this, props);
+    }
 
     const geometryChanged =
       changeFlags.dataChanged ||
@@ -204,18 +241,22 @@ export default class PathLayer extends Layer {
 
     const widthMultiplier = widthUnits === 'pixels' ? viewport.metersPerPixel : 1;
 
-    this.state.model
-      .setUniforms(
-        Object.assign({}, uniforms, {
-          jointType: Number(rounded),
-          billboard,
-          widthScale: widthScale * widthMultiplier,
-          miterLimit,
-          widthMinPixels,
-          widthMaxPixels
-        })
-      )
-      .draw();
+    const {pathTexture} = this.state;
+    if (pathTexture) {
+      this.state.model
+        .setUniforms(
+          Object.assign({}, uniforms, {
+            jointType: Number(rounded),
+            billboard,
+            widthScale: widthScale * widthMultiplier,
+            miterLimit,
+            widthMinPixels,
+            widthMaxPixels,
+            pathTexture
+          })
+        )
+        .draw();
+    }
   }
 
   _getModel(gl) {
@@ -292,6 +333,18 @@ export default class PathLayer extends Layer {
     attribute.startIndices = pathTesselator.vertexStarts;
     attribute.value = pathTesselator.get('segmentTypes');
   }
+
+  finalizeState() {
+    const {pathTexture, emptyTexture} = this.state;
+    if (pathTexture) {
+      pathTexture.delete();
+    }
+    if (emptyTexture) {
+      emptyTexture.delete();
+    }
+  }
+
+
 }
 
 PathLayer.layerName = 'PathLayer';

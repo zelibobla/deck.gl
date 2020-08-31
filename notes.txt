@@ -1,0 +1,321 @@
+let dgl = new deck.DeckGL({
+  container: 'container',
+  views: new deck.OrthographicView(),
+  controller: true,
+  initialViewState: {
+    target: [-79.94994476936431, 40.41124020150025],
+    zoom: 5
+  }
+});
+
+const dashShaders = {
+  inject: {
+    'vs:#decl': `
+attribute vec2 instanceDashArrays;
+varying vec2 vDashArray;
+`,
+
+    'vs:#main-end': `
+vDashArray = instanceDashArrays;
+`,
+
+    'fs:#decl': `
+uniform float dashAlignMode;
+varying vec2 vDashArray;
+
+// mod doesn't work correctly for negative numbers
+float mod2(float a, float b) {
+  return a - floor(a / b) * b;
+}
+
+float round(float x) {
+  return floor(x + 0.5);
+}
+`,
+
+    // if given position is in the gap part of the dashed line
+    // dashArray.x: solid stroke length, relative to width
+    // dashArray.y: gap length, relative to width
+    // alignMode:
+    // 0 - no adjustment
+    // o----     ----     ----     ---- o----     -o----     ----     o
+    // 1 - stretch to fit, draw half dash at each end for nicer joints
+    // o--    ----    ----    ----    --o--      --o--     ----     --o
+    'fs:#main-start': `
+  float solidLength = vDashArray.x;
+  float gapLength = vDashArray.y;
+  float unitLength = solidLength + gapLength;
+
+  if (unitLength > 0.0) {
+    unitLength = mix(
+      unitLength,
+      vPathLength / round(vPathLength / unitLength),
+      dashAlignMode
+    );
+
+    float offset = dashAlignMode * solidLength / 2.0;
+
+    if (
+      gapLength > 0.0 &&
+      vPathPosition.y >= 0.0 &&
+      vPathPosition.y <= vPathLength &&
+      mod2(vPathPosition.y + offset, unitLength) > solidLength
+    ) {
+      discard;
+    }
+  }  
+`
+  }
+};
+
+const offsetShaders = {
+  inject: {
+    'vs:#decl': `
+attribute float instanceOffsets;
+`,
+    'vs:DECKGL_FILTER_SIZE': `
+  float offsetWidth = abs(instanceOffsets * 2.0) + 1.0;
+  size *= offsetWidth;
+`,
+    'vCornerOffset = offsetVec;': `
+  float offsetWidth = abs(instanceOffsets * 2.0) + 1.0;
+  vec2 offsetCenter = -instanceOffsets * (isCap ? perp : miterVec * miterSize) * 2.0;
+  vCornerOffset = vCornerOffset * offsetWidth - offsetCenter;
+`,
+    'fs:#main-start': `
+  float isInside;
+  isInside = step(-1.0, vPathPosition.x) * step(vPathPosition.x, 1.0);
+  if (isInside == 0.0) {
+    discard;
+  }
+`
+  }
+};
+
+const defaultProps = {
+  getDashArray: {type: 'accessor', value: [0, 0]},
+  getOffset: {type: 'accessor', value: 0},
+  dashJustified: false
+};
+
+class PathTextureExtension extends deck.LayerExtension {
+  constructor({dash = false, offset = false} = {}) {
+    super({dash, offset});
+  }
+
+  isEnabled(layer) {
+    return layer.state.pathTesselator;
+  }
+
+  getShaders(extension) {
+    if (!extension.isEnabled(this)) {
+      return null;
+    }
+
+    // Merge shader injection
+    let result = {};
+    if (extension.opts.dash) {
+      result = deck._mergeShaders(result, dashShaders);
+    }
+    if (extension.opts.offset) {
+      result = deck._mergeShaders(result, offsetShaders);
+    }
+
+    return result;
+  }
+
+  initializeState(context, extension) {
+    const attributeManager = this.getAttributeManager();
+    if (!attributeManager || !extension.isEnabled(this)) {
+      // This extension only works with the PathLayer
+      return;
+    }
+
+    extension.enabled = true;
+
+    if (extension.opts.dash) {
+      attributeManager.addInstanced({
+        instanceDashArrays: {size: 2, accessor: 'getDashArray'}
+      });
+    }
+    if (extension.opts.offset) {
+      attributeManager.addInstanced({
+        instanceOffsets: {size: 1, accessor: 'getOffset'}
+      });
+    }
+  }
+
+  updateState(params, extension) {
+    if (!extension.isEnabled(this)) {
+      return;
+    }
+
+    const uniforms = {};
+
+    if (extension.opts.dash) {
+      uniforms.dashAlignMode = this.props.dashJustified ? 1 : 0;
+    }
+
+    this.state.model.setUniforms(uniforms);
+  }
+}
+
+PathTextureExtension.extensionName = 'PathTextureExtension';
+PathTextureExtension.defaultProps = defaultProps;
+
+const layerColors = [[200, 80, 0]];
+function getLayerColor(index) {
+  if (index > layerColors.length - 1) {
+    let color = [
+      Math.round(Math.random() * 255),
+      Math.round(Math.random() * 255),
+      Math.round(Math.random() * 255),
+    ];
+    layerColors.push(color);
+  }
+  return layerColors[index];
+}
+
+let path =  [
+ [-79.94994476936431, 40.41124020150025],
+];
+
+let path2 =  [
+ [-79.94994476936431, 40.41124020150025],
+ [-79.94980047938562, 40.410803185420946],
+ [-79.9496752208958, 40.41088692342135],
+ [-79.94977662042365, 40.411258088271374],
+ [-79.94960399037242, 40.41126782226003],
+ [-79.94949962307548, 40.41093707115928],
+ [-79.94931258632357, 40.41094830807564],
+ [-79.94945712588816, 40.41130721970629],
+];
+
+let currentPath = [...path];
+let layers = [];
+
+function draw(pt) {
+  let newPt = pt;
+  if (!newPt) {
+    let end = currentPath[currentPath.length-1];
+    newPt = [ // 2 4
+      end[0] + Math.round(2 - Math.random() * 4),
+      end[1] + Math.round(2 - Math.random() * 4)
+      // 0, // end[2] + Math.round(1+Math.random() * 2)
+    ];
+  }
+  // console.log('Adding ', newPt);
+  
+  currentPath.push(newPt);
+  let isNewLayer = layers.length === 0 || currentPath.length > 20;
+  let layerIndex = isNewLayer ? layers.length : layers.length -1;
+
+  const pathLayer = new deck.PathLayer({
+        id: `lanes-${layerIndex}`,
+        data: [{path: currentPath}],
+
+        highPrecisionDash: true,
+
+        getPath: d => d.path,
+        getColor: getLayerColor(layerIndex), // [80, 200, 0],
+        getColor2: [0, 128, 255],
+        getWidth: [0.1, 0.05, 0.1],
+        getDashArray: () => [1, 3],
+        extensions: [new PathTextureExtension({dash: true})],
+      })
+  
+  if (isNewLayer) {
+    layers.push(pathLayer);
+    path.forEach(x => x[0] += 0.0001);
+    currentPath = [...path];
+  } else {
+    layers[layers.length-1] = pathLayer;
+  }
+   //console.log(layers);
+
+  dgl.setProps({
+    layers: [...layers]
+  });
+  // console.log(dgl);
+}
+
+draw() // setInterval(draw, 1000); // draw()
+document.onkeydown = e => {
+  draw(); //draw([e.x/10, e.y/10, 0])
+}
+
+###
+
+1 updateGeometry with tesselator
+  - tesselator needs to output uv?
+
+model & texture coords
+
+###
+
+Path dash extension vs:
+ - map input to output vDashArray used in fragment
+
+fs:
+use of vPathLength vPathPosition
+
+Extension
+  getShaders: mergeShaders
+  init: addInstanced(instancedDashArray)
+  updateState:
+    uniforms.dashAlignMode, state.model.setUniforms()
+###
+
+1. get image, create texture/mipmap
+3. set uniforms (texture, dims, billboard)
+
+2. varying uv vTextureCoords
+
+# vertex
+
+# fragment
+texColor = texture2D(texture, vTextureCords)
+
+min_filter: linear_mipmap_linear
+mag_filter: linear
+texture_wrap_s: clamp_to_edge
+texture_wrap_t: clamp_to_edge
+
+this._texture || _externalTexture
+
+iconManager
+  _loadIcons
+    load, loader
+      resizeImage
+      this._texture = Texture2D(gl, {data, parameters})
+      this._texture.setSubImageData()
+      this._texture.generateMipmap()
+
+billboard
+sizeUnits
+
+draw()
+  texture = getTexture();
+  this.state.model
+    .setUniforms(
+      ...,
+      {
+      texture,
+      textureDim
+      billboard
+
+# vertex
+varying vec2 vTextureCoords
+varying vec2 uv
+
+
+uv = positions
+
+# fragment
+uniform sampler2D iconsTexture;
+
+varying vec2 vTextureCoords
+varying vec2 uv
+
+geometry.uv = uv
+texColor = texture2D(iconsTexture, vTextureCoords)

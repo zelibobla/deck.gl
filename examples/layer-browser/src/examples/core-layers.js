@@ -226,13 +226,15 @@ const PathLayerExample = {
     opacity: 0.6,
     getPath: f => f.path,
     getColor: f => [128, 0, 0],
-    getWidth: f => 10,
+    getWidth: f => 20,
     getDashArray: f => [20, 0],
     getOffset: 0,
     widthMinPixels: 1,
     pickable: true,
     dashJustified: true,
-    extensions: [new PathStyleExtension({dash: true, offset: true})]
+    texture: 'data/path-texture.png',
+    // texture: 'data/nyan-cat.png',
+    // extensions: [new PathStyleExtension({dash: true, offset: true})]
   }
 };
 

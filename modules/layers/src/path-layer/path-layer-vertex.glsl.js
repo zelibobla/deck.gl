@@ -51,6 +51,8 @@ varying float vMiterLength;
 varying vec2 vPathPosition;
 varying float vPathLength;
 
+varying vec2 vTextureCoords;
+
 const float EPSILON = 0.001;
 const vec3 ZERO_OFFSET = vec3(0.0);
 
@@ -147,6 +149,7 @@ vec3 lineJoin(
     dot(offsetFromStartOfPath, dir)
   );
   geometry.uv = vPathPosition;
+  vTextureCoords = vPathPosition;
 
   float isValid = step(instanceTypes, 3.5);
   vec3 offset = vec3(offsetVec * width * isValid, 0.0);
@@ -155,6 +158,7 @@ vec3 lineJoin(
   if (needsRotation) {
     offset = rotationMatrix * offset;
   }
+
   return currPoint + offset;
 }
 

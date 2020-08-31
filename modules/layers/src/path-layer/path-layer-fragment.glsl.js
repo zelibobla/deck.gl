@@ -25,6 +25,7 @@ precision highp float;
 
 uniform float jointType;
 uniform float miterLimit;
+uniform sampler2D pathTexture;
 
 varying vec4 vColor;
 varying vec2 vCornerOffset;
@@ -37,8 +38,21 @@ varying float vMiterLength;
 varying vec2 vPathPosition;
 varying float vPathLength;
 
+varying vec2 vTextureCoords;
+
 void main(void) {
   geometry.uv = vPathPosition;
+
+  vec2 uv = vec2((vPathLength - vPathPosition.y) / vPathLength, .5 + vPathPosition.x * .5); 
+  vec4 texColor = texture2D(pathTexture, uv);
+
+  gl_FragColor = vec4(texColor.rgb, texColor.a * vColor.a);
+  
+  // vec3 color = vec3((vPathLength - vPathPosition.y) / vPathLength, .5 + vPathPosition.x * .5 , 0.);
+  // gl_FragColor = vec4(color.rgb, vColor.a);
+
+  /*
+  vec4 texColor = texture2D(pathTexture, vTextureCoords);
 
   if (vPathPosition.y < 0.0 || vPathPosition.y > vPathLength) {
     // if joint is rounded, test distance from the corner
@@ -50,8 +64,15 @@ void main(void) {
       discard;
     }
   }
-  gl_FragColor = vColor;
 
-  DECKGL_FILTER_COLOR(gl_FragColor, geometry);
+  ////
+  //// see icon-layer-fragment.glsl for texture & picking handling
+  ////
+  vec3 color = texColor.rgb;
+  float a = texColor.a * vColor.a;
+
+  gl_FragColor = vec4(color, a);
+  */
+  // DECKGL_FILTER_COLOR(gl_FragColor, geometry);
 }
 `;
