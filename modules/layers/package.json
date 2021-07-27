@@ -31,6 +31,7 @@
     "@loaders.gl/images": "^3.0.6",
     "@mapbox/tiny-sdf": "^1.1.0",
     "@math.gl/polygon": "^3.5.3",
+    "@math.gl/core": "^3.5.3",
     "earcut": "^2.0.6"
   },
   "peerDependencies": {
