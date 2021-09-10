@@ -1,4 +1,4 @@
-import test from 'tape-catch';
+import test from 'tape-promise/tape';
 import {
   getTileIndices,
   tileToBoundingBox,
@@ -243,10 +243,7 @@ const TEST_CASES = [
     }),
     tileSize: 512,
     modelMatrix: new Matrix4().translate([1024, 1024, 0]).scale(2),
-    modelMatrixInverse: new Matrix4()
-      .translate([1024, 1024, 0])
-      .scale(2)
-      .invert(),
+    modelMatrixInverse: new Matrix4().translate([1024, 1024, 0]).scale(2).invert(),
     output: ['-1,-1,0']
   },
   {
@@ -262,10 +259,7 @@ const TEST_CASES = [
     tileSize: 512,
     extent: [0, 0, 2048, 2048],
     modelMatrix: new Matrix4().translate([1024, 1024, 0]).scale(2),
-    modelMatrixInverse: new Matrix4()
-      .translate([1024, 1024, 0])
-      .scale(2)
-      .invert(),
+    modelMatrixInverse: new Matrix4().translate([1024, 1024, 0]).scale(2).invert(),
     output: []
   },
   {

@@ -1,4 +1,4 @@
-import test from 'tape-catch';
+import test from 'tape-promise/tape';
 import {gl} from '@deck.gl/test-utils';
 import GPUGridAggregator from '@deck.gl/aggregation-layers/utils/gpu-grid-aggregation/gpu-grid-aggregator';
 import {
@@ -26,9 +26,7 @@ function verifyResults({t, cpuResults, gpuResults, testName, skipTotalCount = fa
       t.pass(`${testName}: ${name} CPU and GPU results matched`);
     } else {
       t.fail(
-        `${testName}: ${name}: results didn't match cpu: ${cpuResults[name]} gpu: ${
-          gpuResults[name]
-        }`
+        `${testName}: ${name}: results didn't match cpu: ${cpuResults[name]} gpu: ${gpuResults[name]}`
       );
     }
   }

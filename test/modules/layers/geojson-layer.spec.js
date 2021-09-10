@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-import test from 'tape-catch';
+import test from 'tape-promise/tape';
 import {testLayer, generateLayerTests} from '@deck.gl/test-utils';
 import {geojsonToBinary} from '@loaders.gl/gis';
 
@@ -90,7 +90,10 @@ test('GeoJsonLayer#tests', t => {
         },
         'created diff for subLayers'
       );
-      t.ok(subLayers.every(l => l.props._dataDiff), "sublayers' dataDiff prop is populated");
+      t.ok(
+        subLayers.every(l => l.props._dataDiff),
+        "sublayers' dataDiff prop is populated"
+      );
     },
     updateProps: {
       data: Object.assign({}, FIXTURES.choropleths),

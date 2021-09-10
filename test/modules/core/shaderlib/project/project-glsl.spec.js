@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-import test from 'tape-catch';
+import test from 'tape-promise/tape';
 
 import {COORDINATE_SYSTEM, WebMercatorViewport, OrthographicView} from 'deck.gl';
 import {project} from '@deck.gl/core/shaderlib';
@@ -360,14 +360,17 @@ test('project#vs#project_get_orientation_matrix', t => {
   const projectVS = compileVertexShader(vsSource);
   const getOrientationMatrix = projectVS({}).project_get_orientation_matrix;
 
-  const testCases = [[0, 0, 1], [0, 0, -1], [3, 0, 0], [0, 4, 0], [3, 4, 12]];
+  const testCases = [
+    [0, 0, 1],
+    [0, 0, -1],
+    [3, 0, 0],
+    [0, 4, 0],
+    [3, 4, 12]
+  ];
 
   const vectorA = new Vector3([-3, -4, 12]);
   const vectorB = new Vector3([-1, 1, 1]);
-  const angleAB = vectorA
-    .clone()
-    .normalize()
-    .dot(vectorB.clone().normalize());
+  const angleAB = vectorA.clone().normalize().dot(vectorB.clone().normalize());
 
   for (const testVector of testCases) {
     const matrix = new Matrix3(getOrientationMatrix(testVector));

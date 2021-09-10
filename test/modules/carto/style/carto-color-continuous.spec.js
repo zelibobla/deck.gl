@@ -1,4 +1,4 @@
-import test from 'tape-catch';
+import test from 'tape-promise/tape';
 import {colorContinuous} from '@deck.gl/carto';
 
 const CONTINUOUS_TEST_CASES = [
@@ -43,7 +43,10 @@ const ERROR_TEST_CASES_DOMAIN = [
   {
     title: 'Feature with invalid domain',
     domain: -1,
-    colors: [[255, 0, 0], [255, 255, 0]]
+    colors: [
+      [255, 0, 0],
+      [255, 255, 0]
+    ]
   }
 ];
 
@@ -51,7 +54,10 @@ test('colorContinuous', t => {
   const colorContinuousManual = colorContinuous({
     attr: 'target',
     domain: [0, 100],
-    colors: [[255, 0, 0], [255, 255, 0]]
+    colors: [
+      [255, 0, 0],
+      [255, 255, 0]
+    ]
   });
 
   for (const tc of CONTINUOUS_TEST_CASES) {
