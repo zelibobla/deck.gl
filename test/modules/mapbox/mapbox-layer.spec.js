@@ -90,6 +90,7 @@ test('MapboxLayer#onAdd, onRemove, setProps', t => {
     'Layer is added to deck'
   );
   t.deepEqual(deck.props.userData.mapboxVersion, {major: 1, minor: 10}, 'Mapbox version is parsed');
+  t.ok(deck.props.views[0].id === 'mapbox', 'mapbox view exists');
 
   t.deepEqual(
     deck.props.viewState,
@@ -161,6 +162,7 @@ test('MapboxLayer#external Deck', t => {
     map.addLayer(layer);
     t.is(layer.deck, deck, 'Used external Deck instance');
     t.ok(deck.props.userData.mapboxVersion, 'Mapbox version is parsed');
+    t.ok(deck.props.views[0].id === 'mapbox', 'mapbox view exists');
 
     map.emit('render');
     t.pass('Map render does not throw');
@@ -180,10 +182,10 @@ test('MapboxLayer#external Deck', t => {
   };
 });
 
-test('MapboxLayer#external Deck multiple views', t => {
+test('MapboxLayer#external Deck multiple views supplied', t => {
   const deck = new Deck({
     gl,
-    views: [new MapView({id: 'view-one'}), new MapView({id: 'view-two'})],
+    views: [new MapView({id: 'view-two'}), new MapView({id: 'mapbox'})],
     viewState: {
       longitude: 0,
       latitude: 0,
@@ -201,7 +203,7 @@ test('MapboxLayer#external Deck multiple views', t => {
   });
 
   const layerDefaultView = new MapboxLayer({id: 'scatterplot-layer-0', deck});
-  const layerSecondView = new MapboxLayer({id: 'scatterplot-layer-0', deck, viewId: 'view-two'});
+  const layerSecondView = new MapboxLayer({id: 'scatterplot-layer-0', deck});
 
   const map = new MockMapboxMap({
     center: {lng: -122.45, lat: 37.78},
@@ -212,6 +214,11 @@ test('MapboxLayer#external Deck multiple views', t => {
     map.addLayer(layerDefaultView);
     t.is(layerDefaultView.deck, deck, 'Used external Deck instance');
     t.ok(deck.props.userData.mapboxVersion, 'Mapbox version is parsed');
+    t.ok(
+      deck.props.views.filter(view => view.id === 'mapbox').length === 1,
+      'Only one mapbox view exists'
+    );
+    t.ok(deck.props.views[1].id === 'mapbox', 'mapbox view order is correct');
 
     map.addLayer(layerSecondView);
     t.is(layerSecondView.deck, deck, 'Used external Deck instance');
@@ -232,6 +239,45 @@ test('MapboxLayer#external Deck multiple views', t => {
 
     layerSecondView.render();
     t.pass('Map render does not throw');
+
+    t.end();
+  };
+});
+
+test('MapboxLayer#external Deck mapbox view inserted', t => {
+  const deck = new Deck({
+    gl,
+    views: [new MapView({id: 'view-two'})],
+    viewState: {
+      longitude: 0,
+      latitude: 0,
+      zoom: 1
+    },
+    layers: [
+      new ScatterplotLayer({
+        id: 'scatterplot-layer-0',
+        data: [],
+        getPosition: d => d.position,
+        getRadius: 10,
+        getFillColor: [255, 0, 0]
+      })
+    ]
+  });
+
+  const layerDefaultView = new MapboxLayer({id: 'scatterplot-layer-0', deck});
+
+  const map = new MockMapboxMap({
+    center: {lng: -122.45, lat: 37.78},
+    zoom: 12
+  });
+
+  deck.props.onLoad = () => {
+    map.addLayer(layerDefaultView);
+    t.ok(
+      deck.props.views.filter(view => view.id === 'mapbox').length === 1,
+      'Only one mapbox view exists'
+    );
+    t.ok(deck.props.views[1].id === 'mapbox', 'mapbox view order is correct');
 
     t.end();
   };
