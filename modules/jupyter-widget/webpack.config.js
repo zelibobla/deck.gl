@@ -14,7 +14,7 @@ const PACKAGE_INFO = require(resolve(PACKAGE_ROOT, 'package.json'));
 const rules = [
   {
     // Compile ES2015 using babel
-    test: /\.js$/,
+    test: /(\.js|\.ts|\.tsx)$/,
     loader: 'babel-loader',
     include: /src/,
     options: {
@@ -25,7 +25,8 @@ const rules = [
           {
             targets: ['>0.2%', 'not ie 11', 'not dead', 'not chrome 49']
           }
-        ]
+        ],
+        '@babel/preset-typescript'
       ],
       // all of the helpers will reference the module @babel/runtime to avoid duplication
       // across the compiled output.
