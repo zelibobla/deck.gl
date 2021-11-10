@@ -20,6 +20,9 @@
 import {deepEqual} from '../utils/deep-equal';
 
 export default class LayerExtension {
+
+  props;
+
   constructor(opts = {}) {
     this.opts = opts;
   }
@@ -51,6 +54,7 @@ export default class LayerExtension {
         if (propDef && propDef.type === 'accessor') {
           newProps.updateTriggers[key] = this.props.updateTriggers[key];
           if (typeof propValue === 'function') {
+            // @ts-expect-error
             newProps[key] = this.getSubLayerAccessor(propValue, true);
           }
         }

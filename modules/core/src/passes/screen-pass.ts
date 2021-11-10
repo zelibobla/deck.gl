@@ -4,17 +4,25 @@
 // Attribution: This class and the multipass system were inspired by
 // the THREE.js EffectComposer and *Pass classes
 
-import {ClipSpace, setParameters, withParameters, clear} from '@luma.gl/core';
+import {Framebuffer, ClipSpace, setParameters, withParameters, clear} from '@luma.gl/core';
 import Pass from './pass';
 
+type ScreenPassProps = {
+  module;
+  fs;
+  id;
+}
+
 export default class ScreenPass extends Pass {
-  constructor(gl, props = {}) {
+  model: ClipSpace;
+
+  constructor(gl, props: ScreenPassProps) {
     super(gl, props);
     const {module, fs, id} = props;
     this.model = new ClipSpace(gl, {id, fs, modules: [module]});
   }
 
-  render(params) {
+  render(params): void {
     const gl = this.gl;
 
     setParameters(gl, {viewport: [0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight]});

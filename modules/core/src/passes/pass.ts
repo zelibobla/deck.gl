@@ -1,16 +1,20 @@
 export default class Pass {
-  constructor(gl, props = {}) {
-    const {id = 'pass'} = props;
+  id;
+  gl;
+  props;
+
+  constructor(gl, props: {id} = {id: 'pass'}) {
+    const {id} = props;
     this.id = id; // id of this pass
     this.gl = gl;
     this.props = {...props};
   }
 
-  setProps(props) {
+  setProps(props): void {
     Object.assign(this.props, props);
   }
 
-  render() {}
+  render(params): void {}
 
   cleanup() {}
 }
