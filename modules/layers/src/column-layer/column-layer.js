@@ -46,6 +46,7 @@ const defaultProps = {
   wireframe: false,
   filled: true,
   stroked: false,
+  flatShading: false,
 
   getPosition: {type: 'accessor', value: x => x.position},
   getFillColor: {type: 'accessor', value: DEFAULT_COLOR},
@@ -122,18 +123,20 @@ export default class ColumnLayer extends Layer {
       regenerateModels ||
       props.diskResolution !== oldProps.diskResolution ||
       props.vertices !== oldProps.vertices ||
+      (props.extruded && props.flatShading) !== (oldProps.extruded && oldProps.flatShading) ||
       (props.extruded || props.stroked) !== (oldProps.extruded || oldProps.stroked)
     ) {
       this._updateGeometry(props);
     }
   }
 
-  getGeometry(diskResolution, vertices, hasThinkness) {
+  getGeometry(diskResolution, vertices, hasThinkness, flatShading) {
     const geometry = new ColumnGeometry({
       radius: 1,
       height: hasThinkness ? 2 : 0,
       vertices,
-      nradial: diskResolution
+      nradial: diskResolution,
+      flat: flatShading
     });
 
     let meanVertexDistance = 0;
@@ -161,13 +164,15 @@ export default class ColumnLayer extends Layer {
     });
   }
 
-  _updateGeometry({diskResolution, vertices, extruded, stroked}) {
-    const geometry = this.getGeometry(diskResolution, vertices, extruded || stroked);
+  _updateGeometry({diskResolution, vertices, extruded, stroked, flatShading}) {
+    const geometry = this.getGeometry(
+      diskResolution,
+      vertices,
+      extruded || stroked,
+      extruded && flatShading
+    );
 
-    this.setState({
-      fillVertexCount: geometry.attributes.POSITION.value.length / 3,
-      wireframeVertexCount: geometry.indices.value.length
-    });
+    this.setState({indexRanges: geometry.indexRanges});
 
     this.state.model.setProps({geometry});
   }
@@ -189,7 +194,7 @@ export default class ColumnLayer extends Layer {
       radius,
       angle
     } = this.props;
-    const {model, fillVertexCount, wireframeVertexCount, edgeDistance} = this.state;
+    const {model, indexRanges, edgeDistance} = this.state;
 
     model.setUniforms(uniforms).setUniforms({
       radius,
@@ -208,29 +213,33 @@ export default class ColumnLayer extends Layer {
 
     // When drawing 3d: draw wireframe first so it doesn't get occluded by depth test
     if (extruded && wireframe) {
-      model.setProps({isIndexed: true});
+      model.setProps({indexOffset: indexRanges.wireframe[0] * 2});
       model
-        .setVertexCount(wireframeVertexCount)
+        .setVertexCount(indexRanges.wireframe[1])
         .setDrawMode(GL.LINES)
         .setUniforms({isStroke: true})
         .draw();
     }
     if (filled) {
-      model.setProps({isIndexed: false});
+      let start = indexRanges.top[0];
+      let count = indexRanges.top[1];
+      if (extruded) {
+        start = Math.min(start, indexRanges.side[0]);
+        count += indexRanges.side[1];
+      }
+      model.setProps({indexOffset: start * 2});
       model
-        .setVertexCount(fillVertexCount)
-        .setDrawMode(GL.TRIANGLE_STRIP)
+        .setVertexCount(count)
+        .setDrawMode(GL.TRIANGLES)
         .setUniforms({isStroke: false})
         .draw();
     }
     // When drawing 2d: draw fill before stroke so that the outline is always on top
     if (!extruded && stroked) {
-      model.setProps({isIndexed: false});
-      // The width of the stroke is achieved by flattening the side of the cylinder.
-      // Skip the last 1/3 of the vertices which is the top.
+      model.setProps({indexOffset: indexRanges.side[0] * 2});
       model
-        .setVertexCount((fillVertexCount * 2) / 3)
-        .setDrawMode(GL.TRIANGLE_STRIP)
+        .setVertexCount(indexRanges.side[1])
+        .setDrawMode(GL.TRIANGLES)
         .setUniforms({isStroke: true})
         .draw();
     }

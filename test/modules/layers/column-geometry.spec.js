@@ -31,11 +31,9 @@ test('ColumnGeometry#constructor', t => {
 test('ColumnGeometry#tesselation', t => {
   t.comment('Regular geometry with height');
   let geometry = new ColumnGeometry({radius: 1, height: 1, nradial: 4});
-  let attributes = geometry.getAttributes();
+  verifyAttributes(t, geometry);
 
-  t.is(attributes.POSITION.value.length, (5 * 3 + 1) * 3, 'POSITION has correct size');
-  t.is(attributes.NORMAL.value.length, (5 * 3 + 1) * 3, 'NORMAL has correct size');
-  t.is(attributes.indices.value.length, 4 * 3 * 2, 'indices has correct size');
+  let attributes = geometry.getAttributes();
 
   // prettier-ignore
   t.ok(equals(attributes.POSITION.value.slice(0, 3 * 8), [
@@ -51,6 +49,8 @@ test('ColumnGeometry#tesselation', t => {
 
   t.comment('Custom geometry with height');
   geometry = new ColumnGeometry({radius: 1, height: 1, nradial: 4, vertices: TEST_VERTICES});
+  verifyAttributes(t, geometry);
+
   attributes = geometry.getAttributes();
 
   // prettier-ignore
@@ -71,19 +71,53 @@ test('ColumnGeometry#tesselation', t => {
 
   t.comment('Regular geometry without height');
   geometry = new ColumnGeometry({radius: 1, height: 0, nradial: 4});
-  attributes = geometry.getAttributes();
+  verifyAttributes(t, geometry);
 
-  t.is(attributes.POSITION.value.length, 4 * 3, 'POSITION has correct size');
-  t.is(attributes.NORMAL.value.length, 4 * 3, 'NORMAL has correct size');
-  t.is(attributes.indices.value.length, 0, 'indices has correct size');
+  attributes = geometry.getAttributes();
 
   // prettier-ignore
   t.ok(equals(attributes.POSITION.value, [
     1, 0, 0,
     0, 1, 0,
-    0, -1, 0,
-    -1, 0, 0
+    -1, 0, 0,
+    0, -1, 0
+  ]), 'positions generated');
+
+  t.comment('Extruded geometry with flat shading');
+  geometry = new ColumnGeometry({radius: 1, height: 1, nradial: 4, flat: true});
+  verifyAttributes(t, geometry);
+
+  attributes = geometry.getAttributes();
+
+  // prettier-ignore
+  t.ok(equals(attributes.POSITION.value.slice(0, 3 * 8), [
+    1, 0, 0.5, 1, 0, -0.5, 1, 0, 0.5, 1, 0, -0.5,
+    0, 1, 0.5, 0, 1, -0.5, 0, 1, 0.5, 0, 1, -0.5
   ]), 'positions generated');
 
   t.end();
 });
+
+function verifyAttributes(t, geometry) {
+  const attributes = geometry.getAttributes();
+  const {indexRanges} = geometry;
+
+  const maxIndex = Array.from(attributes.indices.value).reduce(
+    (acc, x) => (acc < x ? x : acc),
+    -Infinity
+  );
+
+  t.is(attributes.POSITION.value.length, (maxIndex + 1) * 3, 'POSITION has correct size');
+
+  t.is(attributes.NORMAL.value.length, attributes.POSITION.value.length, 'NORMAL has correct size');
+
+  t.is(
+    attributes.indices.value.length,
+    Math.max(
+      indexRanges.wireframe[0] + indexRanges.wireframe[1],
+      indexRanges.side[0] + indexRanges.side[1],
+      indexRanges.top[0] + indexRanges.top[1]
+    ),
+    'indices has correct size'
+  );
+}
