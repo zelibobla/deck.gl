@@ -18,9 +18,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-import {deepEqual} from '../utils/deep-equal';
 import log from '../utils/log';
 import {flatten} from '../utils/flatten';
+import {isViewStatesEqual} from '../utils/isViewStatesEqual';
 
 export default class ViewManager {
   constructor(props = {}) {
@@ -219,7 +219,7 @@ export default class ViewManager {
 
   _setViewState(viewState) {
     if (viewState) {
-      const viewStateChanged = !deepEqual(viewState, this.viewState);
+      const viewStateChanged = !isViewStatesEqual(viewState, this.viewState);
 
       if (viewStateChanged) {
         this.setNeedsUpdate('viewState changed');

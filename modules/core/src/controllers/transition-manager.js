@@ -177,6 +177,13 @@ export default class TransitionManager {
       ...this.props,
       ...viewport
     }).getViewportProps();
+    if (
+      this.propsInTransition.target[0] === this.transition.settings.startProps.target[0] &&
+      this.propsInTransition.target[1] === this.transition.settings.startProps.target[1] &&
+      this.propsInTransition.zoom === this.transition.settings.startProps.zoom
+    ) {
+      return;
+    }
 
     this.onViewStateChange({
       viewState: this.propsInTransition,
