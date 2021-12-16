@@ -27,7 +27,6 @@ import {
   cssToDevicePixels
 } from '@luma.gl/core';
 import GL from '@luma.gl/constants';
-import log from '../utils/log';
 import PickLayersPass from '../passes/pick-layers-pass';
 import {getClosestObject, getUniqueObjects} from './picking/query-object';
 import {processPickInfo, getLayerPickingInfo, getEmptyPickingInfo} from './picking/pick-info';
@@ -81,9 +80,10 @@ export default class DeckPicker {
     const lastPickedLayerId = lastPickedInfo && lastPickedInfo.layer && lastPickedInfo.layer.id;
     const lastPickedViewportId =
       lastPickedInfo && lastPickedInfo.viewport && lastPickedInfo.viewport.id;
-    const layer = lastPickedLayerId ? layers.find(l => l.id === lastPickedLayerId) : null;
+    const layer = lastPickedLayerId ? layers.find((l) => l.id === lastPickedLayerId) : null;
     const viewport =
-      (lastPickedViewportId && viewports.find(v => v.id === lastPickedViewportId)) || viewports[0];
+      (lastPickedViewportId && viewports.find((v) => v.id === lastPickedViewportId)) ||
+      viewports[0];
     const coordinate = viewport && viewport.unproject([x - viewport.x, y - viewport.y]);
 
     const info = {
@@ -94,10 +94,7 @@ export default class DeckPicker {
       layer
     };
 
-    if (layer) {
-      return {...lastPickedInfo, ...info};
-    }
-    return Object.assign(info, {color: null, object: null, index: -1});
+    return {...lastPickedInfo, ...info};
   }
 
   // Private
@@ -130,11 +127,7 @@ export default class DeckPicker {
     if (this._pickable === false) {
       return null;
     }
-    const pickableLayers = layers.filter(layer => layer.isPickable() && !layer.isComposite);
-    if (pickableLayers.length > 255) {
-      log.warn('Too many pickable layers, only picking the first 255')();
-      return pickableLayers.slice(0, 255);
-    }
+    const pickableLayers = layers.filter((layer) => layer.isPickable() && !layer.isComposite);
     return pickableLayers.length ? pickableLayers : null;
   }
 
@@ -185,10 +178,10 @@ export default class DeckPicker {
 
     let infos;
     const result = [];
-    const affectedLayers = {};
+    const affectedLayers = new Set();
 
     for (let i = 0; i < depth; i++) {
-      const pickedColors =
+      const pickedResult =
         deviceRect &&
         this._drawAndSample({
           layers,
@@ -201,7 +194,7 @@ export default class DeckPicker {
         });
 
       const pickInfo = getClosestObject({
-        pickedColors,
+        ...pickedResult,
         layers,
         deviceX: devicePixel[0],
         deviceY: devicePixel[1],
@@ -211,7 +204,7 @@ export default class DeckPicker {
 
       let z;
       if (pickInfo.pickedLayer && unproject3D && this.depthFBO) {
-        const zValues = this._drawAndSample({
+        const pickedResultPass2 = this._drawAndSample({
           layers: [pickInfo.pickedLayer],
           views,
           viewports,
@@ -223,16 +216,17 @@ export default class DeckPicker {
         });
         // picked value is in common space (pixels) from the camera target (viewport.position)
         // convert it to meters from the ground
-        z = zValues[0] * viewports[0].distanceScales.metersPerUnit[2] + viewports[0].position[2];
+        z =
+          pickedResultPass2.pickedColors[0] * viewports[0].distanceScales.metersPerUnit[2] +
+          viewports[0].position[2];
       }
 
       // Only exclude if we need to run picking again.
       // We need to run picking again if an object is detected AND
       // we have not exhausted the requested depth.
-      if (pickInfo.pickedColor && i + 1 < depth) {
-        const layerId = pickInfo.pickedColor[3] - 1;
-        affectedLayers[layerId] = true;
-        layers[layerId].disablePickingIndex(pickInfo.pickedObjectIndex);
+      if (pickInfo.pickedLayer && i + 1 < depth) {
+        affectedLayers.add(pickInfo.pickedLayer);
+        pickInfo.pickedLayer.disablePickingIndex(pickInfo.pickedObjectIndex);
       }
 
       // This logic needs to run even if no object is picked.
@@ -241,7 +235,6 @@ export default class DeckPicker {
         lastPickedInfo: this.lastPickedInfo,
         mode,
         layers,
-        layerFilter: this.layerFilter,
         viewports,
         x,
         y,
@@ -262,8 +255,8 @@ export default class DeckPicker {
     }
 
     // reset only affected buffers
-    for (const layerId in affectedLayers) {
-      layers[layerId].restorePickingColors();
+    for (const layer of affectedLayers) {
+      layer.restorePickingColors();
     }
 
     return {result, emptyInfo: infos && infos.get(null)};
@@ -311,7 +304,7 @@ export default class DeckPicker {
       height: deviceTop - deviceBottom
     };
 
-    const pickedColors = this._drawAndSample({
+    const pickedResult = this._drawAndSample({
       layers,
       views,
       viewports,
@@ -321,7 +314,7 @@ export default class DeckPicker {
       redrawReason: mode
     });
 
-    const pickInfos = getUniqueObjects({pickedColors, layers});
+    const pickInfos = getUniqueObjects(pickedResult);
 
     // Only return unique infos, identified by info.object
     const uniqueInfos = new Map();
@@ -354,6 +347,15 @@ export default class DeckPicker {
     return Array.from(uniqueInfos.values());
   }
 
+  _isLayersChanged(layers) {
+    const layersState = layers[0].props.colormap.colormap.id + layers[4].props.colormap.colormap.id;
+    if (!this.oldLayersState || this.oldLayersState !== layersState) {
+      this.oldLayersState = layersState;
+      return true;
+    }
+    return false;
+  }
+
   // returns pickedColor or null if no pickable layers found.
   _drawAndSample({
     layers,
@@ -365,12 +367,10 @@ export default class DeckPicker {
     redrawReason,
     pickZ
   }) {
-    if (layers.length < 1) {
-      return null;
-    }
-
     const pickingFBO = pickZ ? this.depthFBO : this.pickingFBO;
 
+    const currentViewport = viewports[0];
+    const fDeviceRect = {x: 0, y: 0, width: currentViewport.width, height: currentViewport.height};
     this.pickLayersPass.render({
       layers,
       layerFilter: this.layerFilter,
@@ -378,25 +378,36 @@ export default class DeckPicker {
       viewports,
       onViewportActive,
       pickingFBO,
-      deviceRect,
+      deviceRect: fDeviceRect,
       pass,
       redrawReason,
       pickZ
     });
+    const {x, y} = deviceRect;
+    let drawResult = this.oldDrawResult;
 
-    // Read from an already rendered picking buffer
-    // Returns an Uint8ClampedArray of picked pixels
-    const {x, y, width, height} = deviceRect;
-    const pickedColors = new (pickZ ? Float32Array : Uint8Array)(width * height * 4);
-    readPixelsToArray(pickingFBO, {
-      sourceX: x,
-      sourceY: y,
-      sourceWidth: width,
-      sourceHeight: height,
-      target: pickedColors
-    });
-
-    return pickedColors;
+    const isViewportChanged = !this.oldViewport || !this.oldViewport.equals(currentViewport);
+    if (isViewportChanged || !this.oldDrawResult || this._isLayersChanged(layers)) {
+      drawResult = new Uint8Array(currentViewport.width * currentViewport.height * 4);
+      readPixelsToArray(pickingFBO, {
+        sourceX: 0,
+        sourceY: 0,
+        sourceWidth: currentViewport.width,
+        sourceHeight: currentViewport.height,
+        target: drawResult
+      });
+      if (drawResult.some((e) => e > 0)) {
+        this.oldDrawResult = drawResult;
+      }
+      this.oldViewport = currentViewport;
+    }
+    const pickedColors = new Uint8Array(4);
+    const index = (y * currentViewport.width + x) * 4;
+    pickedColors[0] = drawResult[index];
+    pickedColors[1] = drawResult[index + 1];
+    pickedColors[2] = drawResult[index + 2];
+    pickedColors[3] = drawResult[index + 3];
+    return {pickedColors};
   }
 
   // Calculate a picking rect centered on deviceX and deviceY and clipped to device
