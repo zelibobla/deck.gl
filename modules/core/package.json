@@ -2,7 +2,7 @@
   "name": "zelibobla-deckgl-core",
   "description": "deck.gl core library",
   "license": "MIT",
-  "version": "8.5.01",
+  "version": "8.5.2",
   "publishConfig": {
     "access": "public"
   },
